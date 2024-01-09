@@ -1,16 +1,14 @@
-extern crate glutin_window;
-extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use glutin_window::GlutinWindow as Window;
-use graphics::color::BLACK;
-use opengl_graphics::{GlGraphics, OpenGL, TextureSettings};
-use piston::{Button, EventLoop, MouseCursorEvent, PressEvent, window};
-use piston::event_loop::{Events, EventSettings};
-use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
-use piston::MouseButton::Left;
+use gfx_device_gl::Device;
+use graphics::Context;
+use graphics::types::Color;
+use opengl_graphics::OpenGL;
+use piston::{Button, ButtonArgs, Input, Loop, ButtonState, Motion, MouseButton};
+use piston::input::RenderArgs;
 use piston::window::WindowSettings;
+use piston_window::{PistonWindow, Glyphs, G2d, Event};
 
 const RENDERER: OpenGL = OpenGL::V3_2;
 const COLUMNS: i32 = 7;
@@ -30,8 +28,22 @@ enum Player {
 impl Player {
     pub fn op(&self) -> Player {
         match self {
-            Player::Yellow => { Player::Red }
-            Player::Red => { Player::Yellow }
+            Player::Yellow => Player::Red,
+            Player::Red => Player::Yellow
+        }
+    }
+
+    pub fn color(&self) -> Color {
+       match self {
+            Player::Yellow => graphics::color::YELLOW,
+            Player::Red => graphics::color::RED
+        } 
+    }
+
+    pub fn text(&self) -> &str {
+        match self {
+            Player::Yellow => "Yellow",
+            Player::Red => "Red",
         }
     }
 }
@@ -50,22 +62,21 @@ pub struct Game {
 }
 
 pub struct App {
-    gl: GlGraphics,
     game: Game,
     window_size: Size,
-    mouse_pos: Pos
+    mouse_pos: Pos,
+    font: Glyphs
 }
 
 impl App {
-    fn render(&mut self, args: &RenderArgs) {
+    fn render(&mut self,
+              args: &RenderArgs,
+              c: Context, 
+              gl: &mut G2d,
+              d: &mut Device) {
         use graphics::*;
 
-        const GRAY: [f32; 4] = [0.2, 0.2, 0.2, 1.0];
-        const BLUE: [f32; 4] = [0.0, 0.17, 0.49, 1.0];
-        const DARK_BLUE: [f32; 4] = [0.0, 0.0, 0.0, 0.2];
-        const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-        const WHITE: [f32; 4] = [1.0; 4];
+        const SHADE: [f32; 4] = [0.0, 0.0, 0.0, 0.2];
 
         self.window_size = (args.window_size[0], args.window_size[1]);
 
@@ -75,55 +86,74 @@ impl App {
         
         let hover_column = self.get_mouse_column();
         
-        self.gl.draw(args.viewport(), |c, gl| {
-            clear(GRAY, gl);
+        clear(color::GRAY, gl);
 
-            let t_matrix = c.transform.trans(offset_x, offset_y);
+        let t_matrix = c.transform.trans(offset_x, offset_y);
 
-            rectangle(BLUE, [0.0, 0.0, board_size, board_size], t_matrix, gl);
+        rectangle(color::BLUE, [0.0, 0.0, board_size, board_size], t_matrix, gl);
 
-            for col in 0..COLUMNS {
-                let x = col as f64 * col_width;
+        for col in 0..COLUMNS {
+            let x = col as f64 * col_width;
 
-                if col % 2 == 0 {
-                    rectangle(DARK_BLUE, [x, 0.0, col_width, board_size], t_matrix, gl);
+            if col % 2 == 0 {
+                rectangle(SHADE, [x, 0.0, col_width, board_size], t_matrix, gl);
+            }
+            
+            if let GameState::Running(player) = &self.game.state {
+                for row in 0..ROWS {
+                    let y = board_size - row as f64 * col_width - col_width;
+
+                    if let Some(player) = &self.game.board[col as usize][row as usize] {
+                        ellipse(player.color(), [x, y, col_width, col_width], t_matrix, gl);
+                    } else {
+                        ellipse(SHADE, [x, y, col_width, col_width], t_matrix, gl);
+                    }
                 }
                 
-                if let GameState::Running(player) = &self.game.state {
-                    let player_color = if *player == Player::Yellow { YELLOW } else { RED };
- 
-                    for row in 0..ROWS {
-                        let y = board_size - row as f64 * col_width - col_width;
-
-                        if let Some(player) = &self.game.board[col as usize][row as usize] {
-                            let cell_color = if *player == Player::Yellow { YELLOW } else { RED };
-                            ellipse(cell_color, [x, y, col_width, col_width], t_matrix, gl);
-                        } else {
-                            ellipse(DARK_BLUE, [x, y, col_width, col_width], t_matrix, gl);
-                        }
-                    }
-                    
-                    match hover_column {
-                        Some(col) => {
-                            let rotated_matrix = t_matrix
-                                                .clone()
-                                                .trans(col as f64 * col_width + col_width / 2.0, col_width / 3.0)
-                                                .rot_deg(45.0);
-
-                            rectangle(player_color, [0.0, 0.0, col_width / 2.0, col_width / 2.0], rotated_matrix, gl);
-                        }
-                        None => (),
-                    }
+                if let Some(col) = hover_column {
+                        let rotated_matrix = t_matrix
+                                            .clone()
+                                            .trans(col as f64 * col_width + col_width / 2.0, col_width / 3.0)
+                                            .rot_deg(45.0);
+                        
+                        rectangle(player.color(), [0.0, 0.0, col_width / 2.0, col_width / 2.0], rotated_matrix, gl);
                 }
-
-                rectangle(WHITE, [0.0, 0.0, board_size, col_width / 1.5], t_matrix, gl);
-                line_from_to(graphics::color::BLACK, 2.0, [0.0, col_width / 1.5], [board_size, col_width / 1.5], t_matrix, gl);
-                //text(graphics::color::BLACK, 24, "FourWins", , t_matrix, gl);
             }
-        });
-    }
+            
+            let bar_height = col_width / 1.5;
+            let bar_width  = board_size;
+            let font_size  = bar_height / 2.0;
 
-    fn update(&mut self, args: &UpdateArgs) {}
+            rectangle(color::WHITE, [0.0, 0.0, board_size, bar_height], t_matrix, gl);
+            line_from_to(graphics::color::BLACK, 2.0, [0.0, bar_height], [board_size, bar_height], t_matrix, gl);
+            
+            let text: String = match &self.game.state {
+                GameState::Starting => {
+                    String::from("Four wins! Click anywhere")  
+                },
+                GameState::Running(player) => {
+                    let p_text = player.text();
+                    format!("{p_text}s turn! Click to place")
+                },
+                GameState::Win(player) => {
+                    let p_text = player.text();
+                    format!("{p_text} wins! Click to reset")
+                },
+                GameState::Draw => {
+                    String::from("It's a draw! Click to reset")
+                }
+            };
+            
+            text::Text::new_color(color::BLACK, (bar_height * 0.5) as u32)
+                .draw(&text,
+                      &mut self.font,
+                      &c.draw_state,
+                      t_matrix.trans(bar_width*0.02, bar_height*0.5 + font_size / 3.0),
+                      gl).unwrap();
+
+            self.font.factory.encoder.flush(d);
+        }
+    }
 
     fn get_dimensions(&self) -> (Pos, Size) {
         let (w, h) = self.window_size;
@@ -134,7 +164,7 @@ impl App {
         ((offset_x, offset_y), (board_size, board_size))
     }
 
-    fn handle_win(&mut self) {
+    fn handle_win(&mut self) -> GameState {
         for column in &self.game.board {
             let mut count = 0;
             let mut cell_owner = None;
@@ -142,8 +172,7 @@ impl App {
                 if *cell != None && *cell == cell_owner {
                     count += 1;
                     if count >= 4 {
-                        self.game.state = GameState::Win((*cell).clone().unwrap());
-                        return;
+                        return GameState::Win(cell.clone().unwrap());
                     }
                 } else {
                     count = 1;
@@ -161,8 +190,7 @@ impl App {
                 if *cell != None && *cell == cell_owner {
                     count += 1;
                     if count >= 4 {
-                        self.game.state = GameState::Win((*cell).clone().unwrap());
-                        return;
+                        return GameState::Win(cell.clone().unwrap());
                     }
                 } else {
                     count = 1;
@@ -179,11 +207,11 @@ impl App {
 
             while col < COLUMNS && row < ROWS {
                 let cell = &self.game.board[col as usize][row as usize];
+
                 if *cell != None && *cell == cell_owner {
                     count += 1;
                     if count >= 4 {
-                        self.game.state = GameState::Win(cell.clone().unwrap());
-                        return;
+                        return GameState::Win(cell.clone().unwrap());
                     }
                 } else {
                     count = 1;
@@ -206,8 +234,7 @@ impl App {
                 if *cell != None && *cell == cell_owner {
                     count += 1;
                     if count >= 4 {
-                        self.game.state = GameState::Win(cell.clone().unwrap());
-                        return; // Exit early on win
+                        return GameState::Win(cell.clone().unwrap());
                     }
                 } else {
                     count = 1;
@@ -220,6 +247,18 @@ impl App {
                 row += 1;
             }
         }
+        
+        for col in &self.game.board {
+            for cell in col {
+                if let None = cell {
+                    if let GameState::Running(cur_player) = &self.game.state {
+                        return GameState::Running(cur_player.op());
+                    }
+                }
+            }
+        }
+
+        GameState::Draw
     }
 
     fn handle_click(&mut self) {
@@ -232,14 +271,10 @@ impl App {
                 match self.get_mouse_column() {
                     Some(column_index) => {
                         for cell in self.game.board[column_index].iter_mut() {
-                            match cell {
-                                None => {
-                                    *cell = Some(player.clone());
-                                    self.game.state = GameState::Running(player.op());
-                                    self.handle_win();
-                                    return;
-                                }
-                                Some(_) => {}
+                            if let None = cell {
+                                *cell = Some(player.clone());
+                                self.game.state = self.handle_win();
+                                return;
                             }
                         }
                     },
@@ -248,7 +283,7 @@ impl App {
 
             },
 
-            GameState::Win(_) | GameState::Draw => *self = App::initial(),
+            GameState::Win(_) | GameState::Draw => self.reset(),
         }
     }
     
@@ -265,45 +300,67 @@ impl App {
          
         Some(column_index as usize)
     }
+    
+    fn reset(&mut self) {
+        self.game = Game {
+            board: vec![vec![None; 6]; 7],
+            state: GameState::Starting,
+        };
+    }
 
-    fn initial() -> App {
+    fn initial(font: Glyphs) -> App {
         App {
-            gl: GlGraphics::new(RENDERER),
             game: Game {
                 board: vec![vec![None; 6]; 7],
                 state: GameState::Starting,
             },
             window_size: (0.0, 0.0),
             mouse_pos: (0.0, 0.0),
+            font 
         }
     }
 }
 
 fn main() {
-    let mut window: Window = WindowSettings::new("Four Wins", [800, 800])
+    let mut window: PistonWindow = WindowSettings::new("Four Wins", [800, 800])
         .graphics_api(RENDERER)
+        .samples(4)
+        .resizable(false)
         .exit_on_esc(true)
         .build()
         .unwrap();
+    
+    let assets = find_folder::Search::ParentsThenKids(3, 3)
+                .for_folder("assets")
+                .unwrap();
+    
+    let glyphs = window.load_font(assets.join("RobotoMono-Regular.ttf")).unwrap();
+    
+    let mut app = App::initial(glyphs);
 
-    let mut app = App::initial();
-    let mut events = Events::new(EventSettings::new().lazy(true));
+    while let Some(e) = window.next() {
+        match e {
+            Event::Loop(Loop::Render(args)) => {
+                window.draw_2d(&e, |c, g, d| {
+                    app.render(&args, c, g, d);
+                });
+            },
 
-    while let Some(e) = events.next(&mut window) {
-        if let Some(args) = e.render_args() {
-            app.render(&args);
-        }
-
-        if let Some(args) = e.update_args() {
-            app.update(&args);
-        }
-
-        if let Some(Button::Mouse(button)) = e.press_args() {
-            if button == Left {
+            Event::Input(
+                Input::Button(
+                    ButtonArgs {
+                        state: ButtonState::Press,
+                        button: Button::Mouse(MouseButton::Left),
+                        ..
+                    }), _) => {
                 app.handle_click();
-            }
-        }
+            },
 
-        e.mouse_cursor(|pos| { app.mouse_pos = (pos[0], pos[1]) });
+            Event::Input(Input::Move(Motion::MouseCursor([x, y])), _) => {
+                app.mouse_pos = (x, y);
+            },
+
+            _ => ()
+        };
     }
 }

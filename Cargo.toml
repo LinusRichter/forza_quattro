@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 find_folder = "0.3.0"
+gfx_device_gl = "0.16.2"
 piston = "0.55.0"
+piston2d-gfx_graphics = "0.80.0"
 piston2d-opengl_graphics = "0.83.0"
 piston_window = "0.131.0"
 
