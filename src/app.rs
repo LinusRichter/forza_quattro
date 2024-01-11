@@ -3,13 +3,19 @@ use graphics::Context;
 use piston::RenderArgs;
 use piston_window::{G2d, Glyphs};
 
-use crate::{constants::{COLUMNS, ROWS}, game::Game, game_state::GameState, Pos, Size};
+use crate::{Pos, Size};
+use crate::animation::{Animation, AnimationState};
+use crate::constants::{COLUMNS, ROWS};
+use crate::game::Game;
+use crate::game_state::GameState;
 
 pub struct App {
     game: Game,
     window_size: Size,
     font: Glyphs,
     mouse_pos: Pos,
+    animations: Vec<Animation>,
+    x: f64,
 }
 
 impl App {
@@ -22,6 +28,8 @@ impl App {
             window_size: (0.0, 0.0),
             mouse_pos: (0.0, 0.0),
             font,
+            animations: vec![],
+            x: 0.0,
         }
     }
 
@@ -31,6 +39,8 @@ impl App {
                   gl: &mut G2d,
                   d: &mut Device) {
         use graphics::*;
+
+        println!("{}", args.ext_dt);
 
         const SHADE: [f32; 4] = [0.0, 0.0, 0.0, 0.2];
 
@@ -80,6 +90,16 @@ impl App {
                 }
             }
 
+            self.x += args.ext_dt;
+
+            println!("{}", self.x);
+
+            self.animations.iter_mut().for_each(|animation: &mut Animation| {
+                animation.render(&mut self.game, t_matrix, gl);
+            });
+
+            self.animations.retain(|animation| animation.is_running());
+
             let bar_height = col_width / 1.5;
             let bar_width = board_size;
             let font_size = bar_height / 2.0;
@@ -122,17 +142,31 @@ impl App {
             }
 
             GameState::Running(player) => {
-                match self.get_mouse_column() {
-                    Some(column_index) => {
-                        for cell in self.game.board[column_index].iter_mut() {
-                            if let None = cell {
-                                *cell = Some(player.clone());
-                                self.game.update_state();
-                                return;
-                            }
+                if let Some(column_index) = self.get_mouse_column() {
+                    let player_clone = player.clone(); // Klonen von player, falls erforderlich
+                    for (i, cell) in self.game.board[column_index].iter_mut().enumerate() {
+                        if cell.is_none() {
+                            let game_clone = self.game.clone(); // Klonen von game, falls erforderlich
+                            self.animations.push(Animation::new(
+                                move |frame, m, gl| -> AnimationState {
+                                    println!("Hallo {}", frame);
+
+                                    if (frame > 60) {
+                                        AnimationState::Stopped
+                                    } else {
+                                        AnimationState::Running
+                                    }
+                                },
+                                move |game: &mut Game| {
+                                    game.board[column_index][i] = Some(player_clone.clone());
+                                    game.update_state();
+                                },
+                            ));
+                            return;
                         }
                     }
-                    None => return,
+                } else {
+                    return;
                 }
             }
 

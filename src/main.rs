@@ -8,17 +8,19 @@ use piston_window::{Event, PistonWindow};
 use app::App;
 use constants::RENDERER;
 
-pub mod constants;
-pub mod player;
-pub mod game_state;
-pub mod game;
-pub mod app;
+mod constants;
+mod player;
+mod game_state;
+mod game;
+mod app;
+mod animation;
 
 type Pos = (f64, f64);
 type Size = (f64, f64);
 
 fn main() {
     let mut window: PistonWindow = WindowSettings::new("Four Wins", [800, 800])
+        .vsync(true)
         .graphics_api(RENDERER)
         .samples(8)
         .resizable(false)

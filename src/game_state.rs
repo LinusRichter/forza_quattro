@@ -1,5 +1,6 @@
 use crate::player::Player;
 
+#[derive(Clone)]
 #[derive(Debug)]
 pub enum GameState {
     Starting,

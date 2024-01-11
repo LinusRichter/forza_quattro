@@ -1,22 +1,23 @@
-use crate::constants::{ROWS, COLUMNS};
-use crate::player::Player;
+use crate::constants::{COLUMNS, ROWS};
 use crate::game_state::GameState;
+use crate::player::Player;
 
+#[derive(Clone)]
 pub struct Game {
     pub board: Vec<Vec<Option<Player>>>,
-    pub state: GameState
+    pub state: GameState,
 }
 
 impl Game {
     pub fn initial() -> Game {
         Self {
-           board: vec![vec![None; 6]; 7],
-           state: GameState::initial()
+            board: vec![vec![None; 6]; 7],
+            state: GameState::initial(),
         }
     }
 
     pub fn update_state(&mut self) {
-       for column in &self.board {
+        for column in &self.board {
             let mut count = 0;
             let mut cell_owner = None;
             for cell in column {
@@ -102,7 +103,7 @@ impl Game {
                 row += 1;
             }
         }
-        
+
         for col in &self.board {
             for cell in col {
                 if let None = cell {
