@@ -78,11 +78,62 @@ impl Game {
             }
         }
 
+        for start_row in 0..ROWS {
+            let mut count = 0;
+            let mut cell_owner = None;
+            let mut col = 0;
+            let mut row = start_row;
+
+            while col < COLUMNS && row < ROWS {
+                let cell = &self.board[col as usize][row as usize];
+
+                if *cell != None && *cell == cell_owner {
+                    count += 1;
+                    if count >= 4 {
+                        self.state = GameState::Win(cell.clone().unwrap());
+                        return;
+                    }
+                } else {
+                    count = 1;
+                    cell_owner = (*cell).clone();
+                }
+
+                col += 1;
+                row += 1;
+            }
+        }
+
         for start_col in (0..COLUMNS).rev() {
             let mut count = 0;
             let mut cell_owner = None;
             let mut col = start_col;
             let mut row = 0;
+
+            while col < COLUMNS && row < ROWS {
+                let cell = &self.board[col as usize][row as usize];
+                if *cell != None && *cell == cell_owner {
+                    count += 1;
+                    if count >= 4 {
+                        self.state = GameState::Win(cell.clone().unwrap());
+                        return;
+                    }
+                } else {
+                    count = 1;
+                    cell_owner = (*cell).clone();
+                }
+
+                if col > 0 {
+                    col -= 1;
+                }
+                row += 1;
+            }
+        }
+
+        for start_row in (0..ROWS).rev() {
+            let mut count = 0;
+            let mut cell_owner = None;
+            let mut col = 0;
+            let mut row = start_row;
 
             while col < COLUMNS && row < ROWS {
                 let cell = &self.board[col as usize][row as usize];

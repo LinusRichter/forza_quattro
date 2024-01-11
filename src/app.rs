@@ -65,7 +65,6 @@ impl App {
             for row in 0..ROWS {
                 let y = board_size - row as f64 * col_width - col_width;
                 
-                let cell_shade_offset = (col_width - col_width / 1.2) / 2.0;
                 let cell_offset = (col_width - col_width / 1.3) / 2.0;
 
                 if let Some(player) = &self.game.board[col as usize][row as usize] {
