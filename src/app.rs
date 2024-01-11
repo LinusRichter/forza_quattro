@@ -1,6 +1,6 @@
 use gfx_device_gl::Device;
 use graphics::Context;
-use piston::RenderArgs;
+use piston::{RenderArgs, UpdateArgs};
 use piston_window::{G2d, Glyphs};
 
 use crate::{Pos, Size};
@@ -97,7 +97,7 @@ impl App {
             
             // Animate'em
             self.animations.iter_mut().for_each(|animation| {
-                animation.render(args.ext_dt, &mut self.game, t_matrix, gl);
+                animation.render(t_matrix, gl);
             });
 
             self.animations.retain(|animation| animation.is_running());    
@@ -141,6 +141,8 @@ impl App {
     pub fn handle_click(&mut self) {
         let (_, (board_size, _)) = self.get_dimensions();
         let col_width = board_size / COLUMNS as f64;
+        
+        if !self.animations.is_empty() { return; };
 
         match self.game.state.clone() {
             GameState::Starting => {
@@ -148,8 +150,7 @@ impl App {
             }
 
             GameState::Running(player) => {
-                if !self.animations.is_empty() { return; };
-
+                
                 if let Some(col) = self.get_mouse_column() {
                     let x = col as f64 * col_width;
                     let player_clone = player.clone();
@@ -164,6 +165,7 @@ impl App {
                             self.animations.push(
                                 Box::new(
                                     Animation::new(
+                                        0.0,
                                         GravityFloorObject::new((x, 0.0), (0.0, 3.0), y),
                                         move |state, t_matrix, gl| {
                                             use graphics::*;
@@ -207,7 +209,8 @@ impl App {
                                 self.animations.push(
                                     Box::new(
                                         Animation::new(
-                                            GravityFloorObject::new((x, y), (0.0, (ROWS - row_i as i32) as f64), board_size + col_width),
+                                            row_i as f64 / (ROWS * 2) as f64,
+                                            GravityFloorObject::new((x, y), (0.0, 0.0), board_size + col_width),
                                             move |state, t_matrix, gl| {
                                                 use graphics::*;
 
@@ -230,6 +233,14 @@ impl App {
                 self.reset();
             },
         }
+    }
+    
+    pub fn update(&mut self, args: &UpdateArgs) {
+        self.animations.iter_mut().for_each(|animation| {
+            animation.update(&mut self.game, args.dt);
+        });
+
+        self.animations.retain(|animation| animation.is_running());    
     }
 
     pub fn reset(&mut self) {
