@@ -1,8 +1,9 @@
 use gfx_device_gl::Device;
 use graphics::Context;
 use piston::{RenderArgs, UpdateArgs};
-use piston_window::{G2d, Glyphs};
+use piston_window::{G2d, Glyphs, G2dTexture};
 
+use crate::constants::colors::{DARK_BLUE, LIGHT_BLUE};
 use crate::{Pos, Size};
 use crate::animation::{Animation, Animatable, GravityFloorObject};
 use crate::constants::{COLUMNS, ROWS};
@@ -13,17 +14,19 @@ pub struct App {
     game: Game,
     window_size: Size,
     font: Glyphs,
+    tile: G2dTexture,
     mouse_pos: Pos,
     animations: Vec<Box<dyn Animatable>>,
 }
 
 impl App {
-    pub fn initial(font: Glyphs) -> App {
+    pub fn initial(font: Glyphs, tile: G2dTexture) -> App {
         Self {
             game: Game::initial(),
             window_size: (0.0, 0.0),
             mouse_pos: (0.0, 0.0),
             font,
+            tile,
             animations: vec![],
         }
     }
@@ -34,8 +37,8 @@ impl App {
                   gl: &mut G2d,
                   d: &mut Device) {
         use graphics::*;
-
-        const SHADE: [f32; 4] = [0.0, 0.0, 0.0, 0.2];
+        
+        clear(color::GRAY, gl);
 
         self.window_size = (args.window_size[0], args.window_size[1]);
 
@@ -45,45 +48,38 @@ impl App {
 
         let hover_column = self.get_mouse_column();
 
-        clear(color::GRAY, gl);
-
         let t_matrix = c.transform.trans(offset_x, offset_y);
+        
+        rectangle(DARK_BLUE, [0.0, 0.0, board_size, board_size], t_matrix, gl);
+        
+        // Animate'em
+        self.animations.iter_mut().for_each(|animation| {
+            animation.render(t_matrix, gl);
+        }); 
 
-        rectangle(color::BLUE, [0.0, 0.0, board_size, board_size], t_matrix, gl);
-
+        rectangle(LIGHT_BLUE, [0.0, 0.0, board_size, col_width], t_matrix, gl);
+        
         for col in 0..COLUMNS {
             let x = col as f64 * col_width;
 
-            if col % 2 == 0 {
-                rectangle(SHADE, [x, 0.0, col_width, board_size], t_matrix, gl);
-            }
+            for row in 0..ROWS {
+                let y = board_size - row as f64 * col_width - col_width;
+                
+                let cell_shade_offset = (col_width - col_width / 1.2) / 2.0;
+                let cell_offset = (col_width - col_width / 1.3) / 2.0;
 
-            match &self.game.state {
-                GameState::Running(_) | GameState::Win(_) | GameState::Draw => {
-                    for row in 0..ROWS {
-                        let y = board_size - row as f64 * col_width - col_width;
+                if let Some(player) = &self.game.board[col as usize][row as usize] {
+                    ellipse(player.color(),
+                            [x + cell_offset, y + cell_offset, col_width / 1.3, col_width / 1.3],
+                            t_matrix, gl);
+                } 
+                
 
-                        let cell_shade_offset = (col_width - col_width / 1.2) / 2.0;
-                        let cell_offset = (col_width - col_width / 1.3) / 2.0;
-
-                        if let Some(player) = &self.game.board[col as usize][row as usize] {
-                            ellipse(player.shade_color(),
-                                    [x + cell_shade_offset, y + cell_shade_offset, col_width / 1.2, col_width / 1.2],
-                                    t_matrix, gl);
-
-                            ellipse(player.color(),
-                                    [x + cell_offset, y + cell_offset, col_width / 1.3, col_width / 1.3],
-                                    t_matrix, gl);
-                        } else {
-                            ellipse(SHADE,
-                                    [x + cell_shade_offset, y + cell_shade_offset, col_width / 1.2, col_width / 1.2],
-                                    t_matrix, gl);
-                        }
-                    }
-                }
-                _ => ()
+                image(&self.tile, t_matrix.trans(x, y).scale(col_width / 400.0, col_width / 400.0), gl);
             }
             
+              
+
             if let GameState::Running(player) = &self.game.state {
                 if let Some(col) = hover_column {
                     let rotated_matrix = t_matrix
@@ -93,14 +89,7 @@ impl App {
 
                     rectangle(player.color(), [0.0, 0.0, col_width / 2.0, col_width / 2.0], rotated_matrix, gl);
                 }
-            }
-            
-            // Animate'em
-            self.animations.iter_mut().for_each(|animation| {
-                animation.render(t_matrix, gl);
-            });
-
-            self.animations.retain(|animation| animation.is_running());    
+            } 
             
             // Status bar
             let bar_height = col_width / 1.5;
@@ -141,7 +130,8 @@ impl App {
     pub fn handle_click(&mut self) {
         let (_, (board_size, _)) = self.get_dimensions();
         let col_width = board_size / COLUMNS as f64;
-        
+        let cell_offset = (col_width - col_width / 1.3) / 2.0;
+
         if !self.animations.is_empty() { return; };
 
         match self.game.state.clone() {
@@ -158,9 +148,6 @@ impl App {
                     for (row, cell) in self.game.board[col].iter_mut().enumerate() {
                         let y = board_size - row as f64 * col_width - col_width;
 
-                        //let cell_shade_offset = (col_width - col_width / 1.2) / 2.0;
-                        let cell_offset = (col_width - col_width / 1.3) / 2.0;
-
                         if cell.is_none() {
                             self.animations.push(
                                 Box::new(
@@ -169,10 +156,6 @@ impl App {
                                         GravityFloorObject::new((x, 0.0), (0.0, 3.0), y),
                                         move |state, t_matrix, gl| {
                                             use graphics::*;
-
-                                            //ellipse(player.shade_color(),
-                                            //        [x + cell_shade_offset, y + cell_shade_offset, col_width / 1.2, col_width / 1.2],
-                                            //        t_matrix, gl);
 
                                             ellipse(player.color(),
                                                    [ state.position.0 + cell_offset,

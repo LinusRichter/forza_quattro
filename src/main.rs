@@ -1,9 +1,10 @@
 extern crate opengl_graphics;
 extern crate piston;
 
+use gfx_graphics::{Texture, Flip, TextureSettings};
 use piston::{Button, ButtonArgs, ButtonState, Input, Loop, Motion, MouseButton, Events};
 use piston::window::WindowSettings;
-use piston_window::{Event, PistonWindow};
+use piston_window::{Event, PistonWindow, G2dTexture};
 use std::collections::VecDeque;
 
 use app::App;
@@ -44,8 +45,17 @@ fn main() {
         .unwrap();
 
     let glyphs = window.load_font(assets.join("RobotoMono-Regular.ttf")).unwrap();
+    
+    let tile = assets.join("tile.png");
 
-    let mut app = App::initial(glyphs);
+    let tile: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &tile,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+
+    let mut app = App::initial(glyphs, tile);
     
     let mut frames: VecDeque<f64> = VecDeque::with_capacity(10);
 
