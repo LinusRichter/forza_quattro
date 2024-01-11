@@ -20,7 +20,6 @@ type Size = (f64, f64);
 
 fn main() {
     let mut window: PistonWindow = WindowSettings::new("Four Wins", [800, 800])
-        .vsync(true)
         .graphics_api(RENDERER)
         .samples(8)
         .resizable(false)
