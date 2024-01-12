@@ -3,6 +3,7 @@ use graphics::types::Color;
 #[derive(Clone)]
 #[derive(PartialEq)]
 #[derive(Debug)]
+#[derive(Copy)]
 pub enum Player {
     Yellow,
     Red,

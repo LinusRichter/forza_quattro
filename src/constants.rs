@@ -8,7 +8,7 @@ pub const GRAVITY: f64 = 981.0;
 
 pub const EVENT_SETTINGS: EventSettings = piston_window::EventSettings {
         max_fps: 60,
-        ups: 60,
+        ups: 120,
         ups_reset: 2,
         swap_buffers: true,
         bench_mode: false,

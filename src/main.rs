@@ -46,8 +46,53 @@ fn main() {
             Flip::None,
             &TextureSettings::new()
         ).unwrap();
+    
+    let tile_bg = assets.join("tile-bg.png");
 
-    let mut app = App::initial(glyphs, tile);
+    let tile_bg: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &tile_bg,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+
+    let coin_yellow = assets.join("coin-yellow.png");
+
+    let coin_yellow: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &coin_yellow,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+    
+    let coin_red = assets.join("coin-red.png");
+
+    let coin_red: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &coin_red,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+
+    let arrow_yellow = assets.join("arrow-yellow.png");
+
+    let arrow_yellow: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &arrow_yellow,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+    
+    let arrow_red = assets.join("arrow-red.png");
+
+    let arrow_red: G2dTexture = Texture::from_path(
+            &mut window.create_texture_context(),
+            &arrow_red,
+            Flip::None,
+            &TextureSettings::new()
+        ).unwrap();
+
+    let mut app = App::initial(glyphs, tile, tile_bg, coin_yellow, coin_red, arrow_yellow, arrow_red);
     
     let mut frames: VecDeque<f64> = VecDeque::with_capacity(10);
 
