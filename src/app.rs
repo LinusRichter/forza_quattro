@@ -3,12 +3,14 @@ use graphics::Context;
 use piston::{RenderArgs, UpdateArgs};
 use piston_window::{G2d, Glyphs, G2dTexture};
 
+use crate::animation::animatable::Animatable;
 use crate::constants::colors::{DARK_BLUE, LIGHT_BLUE};
 use crate::{Pos, Size};
-use crate::animation::{Animation, Animatable, GravityFloorObject};
+use crate::animation::Animation;
 use crate::constants::{COLUMNS, ROWS};
 use crate::game::Game;
 use crate::game_state::GameState;
+use crate::gravity_floor_state::GravityFloorState;
 
 pub struct App {
     game: Game,
@@ -152,7 +154,7 @@ impl App {
                                 Box::new(
                                     Animation::new(
                                         0.0,
-                                        GravityFloorObject::new((x, 0.0), (0.0, 3.0), y),
+                                        GravityFloorState::new((x, 0.0), (0.0, 3.0), y),
                                         move |state, t_matrix, gl| {
                                             use graphics::*;
 
@@ -192,7 +194,7 @@ impl App {
                                     Box::new(
                                         Animation::new(
                                             row_i as f64 / (ROWS * 2) as f64,
-                                            GravityFloorObject::new((x, y), (0.0, 0.0), board_size + col_width),
+                                            GravityFloorState::new((x, y), (0.0, 0.0), board_size + col_width),
                                             move |state, t_matrix, gl| {
                                                 use graphics::*;
 

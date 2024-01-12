@@ -8,7 +8,7 @@ use piston_window::{Event, PistonWindow, G2dTexture};
 use std::collections::VecDeque;
 
 use app::App;
-use constants::RENDERER;
+use constants::{RENDERER, EVENT_SETTINGS};
 
 mod constants;
 mod player;
@@ -16,6 +16,7 @@ mod game_state;
 mod game;
 mod app;
 mod animation;
+mod gravity_floor_state;
 
 type Pos = (f64, f64);
 type Size = (f64, f64);
@@ -29,20 +30,11 @@ fn main() {
         .build()
         .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
     
-    let event_settings = piston_window::EventSettings {
-        max_fps: 60,
-        ups: 60,
-        ups_reset: 2,
-        swap_buffers: true,
-        bench_mode: false,
-        lazy: false,
-    };
-    
-    let mut events = Events::new(event_settings);
+    let mut events = Events::new(EVENT_SETTINGS);
 
     let assets = find_folder::Search::ParentsThenKids(3, 3)
         .for_folder("assets")
-        .unwrap();
+        .unwrap_or_else(|e| panic!("Failed to find asset folder: {}", e));
 
     let glyphs = window.load_font(assets.join("RobotoMono-Regular.ttf")).unwrap();
     
@@ -63,6 +55,8 @@ fn main() {
         match e {
             Event::Loop(loop_event) => {
                 match loop_event {
+
+                    // Unknown FPS (wonky)
                     Loop::Render(args) => {
                         if frames.len() == frames.capacity() {
                             frames.pop_back();
