@@ -100,7 +100,7 @@ impl App {
 
             let text: String = match &self.game.state {
                 GameState::Starting => {
-                    String::from("Four wins! Click anywhere")
+                    String::from("Forza quattro! Click anywhere")
                 }
                 GameState::Running(player) => {
                     let p_text = player.text();
