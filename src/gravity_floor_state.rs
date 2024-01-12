@@ -22,7 +22,11 @@ impl AnimationState for GravityFloorState {
         
         if self.position.1 >= self.floor {
             self.position.1 = self.floor;
-            return AnimationStatus::Finished;
+            self.velocity.1 *= -0.2;
+
+            if self.velocity.1.abs() < 5.0 {
+                return AnimationStatus::Finished;
+            } 
         }
 
         AnimationStatus::Running
